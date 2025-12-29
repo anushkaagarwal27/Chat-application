@@ -1,7 +1,12 @@
 const express = require("express");
 const app = express();
 const http = require("http").createServer(app);
-const io = require("socket.io")(http);
+const io = require("socket.io")(http, {
+  cors: {
+    origin: "*",  // This allows GitHub Pages to connect
+    methods: ["GET", "POST"]
+  }
+});
 
 // Serve files from the CURRENT directory (Localhost fix)
 app.use(express.static(__dirname));
@@ -69,4 +74,5 @@ io.on("connection", (socket) => {
 const PORT = 3000;
 http.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
+
 });
