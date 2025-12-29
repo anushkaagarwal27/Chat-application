@@ -57,6 +57,7 @@ body {
     gap: 15px;
     border-right: var(--glass-border);
     transition: transform 0.3s ease-in-out;
+    overflow-y: auto; /* Allows scrolling if list is long */
 }
 
 .sidebar h2 {
@@ -289,6 +290,17 @@ emoji-picker {
     width: 100%;
     max-width: 350px;
     height: 300px;
+    /* New positioning logic */
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    z-index: 100;
+    display: none; /* Hidden by default */
+}
+
+/* Open state class (toggle this in JS instead of style.display) */
+emoji-picker.open {
+    display: block;
 }
 
 @keyframes fadeIn {
@@ -330,3 +342,4 @@ emoji-picker {
         display: block;
     }
 }
+
