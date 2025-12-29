@@ -314,37 +314,70 @@ emoji-picker {
     --emoji-picker-border-radius: 20px;
 }
 
-/* --- MOBILE RESPONSIVENESS LOGIC --- */
+/* --- Mobile Responsive Logic --- */
+
+/* By default on mobile: Show Sidebar, Hide Chat */
 @media (max-width: 768px) {
     .app {
-        width: 100%;
-        height: 100%;
-        border-radius: 0;
-        border: none;
+        position: relative;
+        overflow: hidden;
     }
 
-    /* 1. Default Mobile State: Show Sidebar, Hide Chat */
+    /* 1. Sidebar takes full width initially */
     .sidebar {
         width: 100%;
-        display: flex;
+        display: flex; /* or block, depending on your layout */
+        flex-direction: column;
+        height: 100vh;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        background: #fff; /* Ensure it has a background */
+        transition: transform 0.3s ease;
     }
 
+    /* 2. Chat window is hidden initially */
     .chat-window {
-        display: none;
         width: 100%;
+        height: 100vh;
+        display: none; /* HIDDEN */
+        flex-direction: column;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 20;
+        background: #fff;
     }
 
-    /* 2. Active Chat State: Hide Sidebar, Show Chat */
+    /* --- THE TOGGLE LOGIC --- */
+
+    /* 3. When 'show-chat' is active: Hide Sidebar */
     .app.show-chat .sidebar {
-        display: none;
+        display: none; 
+        /* Or use transform: translateX(-100%) for animation */
     }
 
+    /* 4. When 'show-chat' is active: Show Chat Window */
     .app.show-chat .chat-window {
-        display: flex;
+        display: flex; /* Visible! */
     }
 
-    /* 3. Show Back Button */
+    /* 5. Back button visibility */
     #back-btn {
-        display: block;
+        display: block; /* Show back button only on mobile */
+        margin-right: 10px;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
     }
 }
+
+/* On Desktop: Hide the back button */
+@media (min-width: 769px) {
+    #back-btn {
+        display: none;
+    }
+}
+
