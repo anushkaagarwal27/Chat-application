@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ChatSpace</title>
+    <title>Modern Chat</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
@@ -12,8 +12,9 @@
 
 <body>
     <div class="app" id="app-container">
+        
         <aside class="sidebar">
-            <h2><i class="fas fa-comments"></i> ChatSpace</h2>
+            <h2><i class="fas fa-comments"></i> Chat Room</h2>
             
             <div>
                 <input id="username" placeholder="Enter your name..." autocomplete="off" />
@@ -42,189 +43,190 @@
                 <input id="message" placeholder="Type message..." autocomplete="off" />
                 <button id="send"><i class="fas fa-paper-plane"></i></button>
                 
-                
+                <emoji-picker id="emoji-picker"></emoji-picker>
             </footer>
         </section>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    
     <script>
-        // --- CONFIGURATION ---
-        const socket = io("https://chat-application-613y.onrender.com"); 
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION ---
+            const socket = io("https://chat-application-613y.onrender.com");
 
-        const appContainer = document.getElementById('app-container');
-        const chat = document.getElementById('chat');
-        const messageInput = document.getElementById('message');
-        const usernameInput = document.getElementById('username');
-        const roomInput = document.getElementById('room');
-        const sendBtn = document.getElementById('send');
-        const joinBtn = document.getElementById('join');
-        const backBtn = document.getElementById('back-btn'); // New Back Button
-        const roomNameDisplay = document.getElementById('room-name');
-        const emojiBtn = document.getElementById('emoji-btn');
-        const emojiPicker = document.getElementById('emoji-picker');
-        const onlineList = document.getElementById('online-users');
-        const roomTabs = document.getElementById('room-tabs');
+            const appContainer = document.getElementById('app-container');
+            const chat = document.getElementById('chat');
+            const messageInput = document.getElementById('message');
+            const usernameInput = document.getElementById('username');
+            const roomInput = document.getElementById('room');
+            const sendBtn = document.getElementById('send');
+            const joinBtn = document.getElementById('join');
+            const backBtn = document.getElementById('back-btn');
+            const roomNameDisplay = document.getElementById('room-name');
+            const emojiBtn = document.getElementById('emoji-btn');
+            const emojiPicker = document.getElementById('emoji-picker');
+            const onlineList = document.getElementById('online-users');
+            const roomTabs = document.getElementById('room-tabs');
 
-        let joinedRooms = new Set();
-        let activeRoom = null;
-        const messageHistory = {}; 
-        const unreadCounts = {};
+            let joinedRooms = new Set();
+            let activeRoom = null;
+            const messageHistory = {}; 
+            const unreadCounts = {};
 
-        function formatTime(t) {
-            return new Date(Number(t)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-
-        function renderMessage({ user, msg, time, id }, isSystem = false) {
-            const isSelf = user === (usernameInput.value || 'Anonymous').trim();
-            const wrapper = document.createElement('div');
-            wrapper.className = `message ${isSelf ? 'sent' : 'received'}`;
-            wrapper.dataset.id = id;
-
-            const bubble = document.createElement('div');
-            bubble.className = 'bubble';
-
-            if (isSystem) {
-                wrapper.innerHTML = `<div class="meta system">${msg}</div>`;
-                wrapper.className = 'message system-wrapper';
-            } else {
-                bubble.innerHTML = `
-                    <div class="text">${msg}</div>
-                    <div class="meta">
-                        ${isSelf ? '' : user + ' •'} ${formatTime(time)}
-                        <span class="read" style="display:none; color: #aef;">✓✓</span>
-                    </div>`;
-                wrapper.appendChild(bubble);
+            function formatTime(t) {
+                return new Date(Number(t)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
 
-            chat.appendChild(wrapper);
-            chat.scrollTop = chat.scrollHeight; 
-        }
+            function renderMessage({ user, msg, time, id }, isSystem = false) {
+                const isSelf = user === (usernameInput.value || 'Anonymous').trim();
+                const wrapper = document.createElement('div');
+                wrapper.className = `message ${isSelf ? 'sent' : 'received'}`;
+                wrapper.dataset.id = id;
 
-        function switchRoom(room) {
-            activeRoom = room;
-            roomNameDisplay.innerHTML = `Room: <b>${room}</b>`;
-            
-            // 1. Clear & Restore
-            chat.innerHTML = '';
-            if (messageHistory[room]) {
-                messageHistory[room].forEach(data => renderMessage(data, data.isSystem));
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+
+                if (isSystem) {
+                    wrapper.innerHTML = `<div class="meta system">${msg}</div>`;
+                    wrapper.className = 'message system-wrapper';
+                } else {
+                    bubble.innerHTML = `
+                        <div class="text">${msg}</div>
+                        <div class="meta">
+                            ${isSelf ? '' : user + ' •'} ${formatTime(time)}
+                            <span class="read" style="display:none; color: #aef;">✓✓</span>
+                        </div>`;
+                    wrapper.appendChild(bubble);
+                }
+
+                chat.appendChild(wrapper);
+                chat.scrollTop = chat.scrollHeight; 
             }
 
-            // 2. UI Updates
-            document.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
-            const activeTab = document.querySelector(`.room-tab[data-room="${room}"]`);
-            if(activeTab) activeTab.classList.add('active');
+            function switchRoom(room) {
+                activeRoom = room;
+                roomNameDisplay.innerHTML = `Room: <b>${room}</b>`;
+                
+                chat.innerHTML = '';
+                if (messageHistory[room]) {
+                    messageHistory[room].forEach(data => renderMessage(data, data.isSystem));
+                }
 
-            unreadCounts[room] = 0;
-            updateRoomTabBadge(room);
+                document.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
+                const activeTab = document.querySelector(`.room-tab[data-room="${room}"]`);
+                if(activeTab) activeTab.classList.add('active');
 
-            // 3. MOBILE: Show Chat View
-            appContainer.classList.add('show-chat');
-        }
+                unreadCounts[room] = 0;
+                updateRoomTabBadge(room);
 
-        function updateRoomTabBadge(room) {
-            const tab = document.querySelector(`.room-tab[data-room="${room}"]`);
-            if (tab) {
-                const count = unreadCounts[room] || 0;
-                const badge = tab.querySelector('.badge');
-                badge.textContent = count > 0 ? count : '';
-                badge.style.display = count > 0 ? 'block' : 'none';
-            }
-        }
-
-        function addRoomTab(room) {
-            const tab = document.createElement('button');
-            tab.className = 'room-tab';
-            tab.dataset.room = room;
-            tab.innerHTML = `${room} <span class="badge" style="display:none"></span>`;
-            tab.onclick = () => switchRoom(room);
-            roomTabs.appendChild(tab);
-        }
-
-        // --- BUTTON ACTIONS ---
-
-        joinBtn.onclick = () => {
-            const room = (roomInput.value || 'general').trim();
-            const user = (usernameInput.value || 'Anonymous').trim();
-            
-            if(!room || !user) {
-                alert("Please enter both a Name and a Room!");
-                return;
+                // --- MOBILE TOGGLE LOGIC ---
+                // This triggers the CSS to hide sidebar and show chat
+                appContainer.classList.add('show-chat');
             }
 
-            if (!joinedRooms.has(room)) {
-                socket.emit('join room', { room, user });
-                joinedRooms.add(room);
-                addRoomTab(room);
-                if (!messageHistory[room]) messageHistory[room] = [];
+            function updateRoomTabBadge(room) {
+                const tab = document.querySelector(`.room-tab[data-room="${room}"]`);
+                if (tab) {
+                    const count = unreadCounts[room] || 0;
+                    const badge = tab.querySelector('.badge');
+                    badge.textContent = count > 0 ? count : '';
+                    badge.style.display = count > 0 ? 'block' : 'none';
+                }
             }
-            switchRoom(room);
-        };
 
-        // NEW: Back Button Logic for Mobile
-        backBtn.onclick = () => {
-            appContainer.classList.remove('show-chat');
-        };
-
-        sendBtn.onclick = () => {
-            if (!activeRoom) return;
-            const msg = messageInput.value.trim();
-            if (!msg) return;
-            const user = (usernameInput.value || 'Anonymous').trim();
-            socket.emit('chat message', { room: activeRoom, user, msg });
-            messageInput.value = '';
-        };
-
-        messageInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') sendBtn.onclick();
-        });
-
-        // Emoji Logic
-        emojiBtn.onclick = (e) => {
-            e.stopPropagation();
-            const isVisible = emojiPicker.style.display === 'block';
-            emojiPicker.style.display = isVisible ? 'none' : 'block';
-        };
-        emojiPicker.addEventListener('emoji-click', e => {
-            messageInput.value += e.detail.unicode;
-        });
-        document.addEventListener('click', (e) => {
-            if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
-                emojiPicker.style.display = 'none';
+            function addRoomTab(room) {
+                const tab = document.createElement('button');
+                tab.className = 'room-tab';
+                tab.dataset.room = room;
+                tab.innerHTML = `${room} <span class="badge" style="display:none"></span>`;
+                tab.onclick = () => switchRoom(room);
+                roomTabs.appendChild(tab);
             }
-        });
 
-        // --- SOCKET EVENTS ---
+            // --- BUTTON ACTIONS ---
 
-        socket.on('chat message', data => {
-            if (!messageHistory[data.room]) messageHistory[data.room] = [];
-            messageHistory[data.room].push(data);
+            joinBtn.onclick = () => {
+                const room = (roomInput.value || 'general').trim();
+                const user = (usernameInput.value || 'Anonymous').trim();
+                
+                if(!room || !user) {
+                    alert("Please enter both a Name and a Room!");
+                    return;
+                }
 
-            if (data.room === activeRoom) {
-                renderMessage(data);
-                socket.emit('message read', { room: activeRoom, msgId: data.id });
-            } else {
-                unreadCounts[data.room] = (unreadCounts[data.room] || 0) + 1;
-                updateRoomTabBadge(data.room);
+                if (!joinedRooms.has(room)) {
+                    socket.emit('join room', { room, user });
+                    joinedRooms.add(room);
+                    addRoomTab(room);
+                    if (!messageHistory[room]) messageHistory[room] = [];
+                }
+                switchRoom(room);
+            };
+
+            // NEW: Back Button Action
+            if(backBtn) {
+                backBtn.onclick = () => {
+                    appContainer.classList.remove('show-chat');
+                };
             }
-        });
 
-        socket.on('system message', data => {
-            data.isSystem = true; 
-            if (!messageHistory[data.room]) messageHistory[data.room] = [];
-            messageHistory[data.room].push(data);
+            sendBtn.onclick = () => {
+                if (!activeRoom) return;
+                const msg = messageInput.value.trim();
+                if (!msg) return;
+                const user = (usernameInput.value || 'Anonymous').trim();
+                socket.emit('chat message', { room: activeRoom, user, msg });
+                messageInput.value = '';
+            };
 
-            if (data.room === activeRoom) renderMessage(data, true);
-        });
+            messageInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') sendBtn.onclick();
+            });
 
-        socket.on('online users', users => {
-            onlineList.innerHTML = users.map(u => `<li>${u.user}</li>`).join('');
+            // Emoji Logic
+            emojiBtn.onclick = (e) => {
+                e.stopPropagation();
+                // Toggle display using CSS style directly or class
+                const isVisible = emojiPicker.style.display === 'block';
+                emojiPicker.style.display = isVisible ? 'none' : 'block';
+            };
+            emojiPicker.addEventListener('emoji-click', e => {
+                messageInput.value += e.detail.unicode;
+            });
+            document.addEventListener('click', (e) => {
+                if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+                    emojiPicker.style.display = 'none';
+                }
+            });
+
+            // --- SOCKET EVENTS ---
+
+            socket.on('chat message', data => {
+                if (!messageHistory[data.room]) messageHistory[data.room] = [];
+                messageHistory[data.room].push(data);
+
+                if (data.room === activeRoom) {
+                    renderMessage(data);
+                    socket.emit('message read', { room: activeRoom, msgId: data.id });
+                } else {
+                    unreadCounts[data.room] = (unreadCounts[data.room] || 0) + 1;
+                    updateRoomTabBadge(data.room);
+                }
+            });
+
+            socket.on('system message', data => {
+                data.isSystem = true; 
+                if (!messageHistory[data.room]) messageHistory[data.room] = [];
+                messageHistory[data.room].push(data);
+
+                if (data.room === activeRoom) renderMessage(data, true);
+            });
+
+            socket.on('online users', users => {
+                onlineList.innerHTML = users.map(u => `<li>${u.user}</li>`).join('');
+            });
         });
     </script>
 </body>
 </html>
-
-
-
-
