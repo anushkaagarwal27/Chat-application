@@ -51,7 +51,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // Connect to Localhost automatically
-        const socket = io();
+        const socket = io("https://chat-application-613y.onrender.com");
 
         const chat = document.getElementById('chat');
         const messageInput = document.getElementById('message');
@@ -212,4 +212,5 @@
         });
     </script>
 </body>
+
 </html>
