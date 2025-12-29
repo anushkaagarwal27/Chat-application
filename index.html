@@ -3,20 +3,20 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AnnieTextSpace</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 </head>
 
 <body>
-    <div class="app">
+    <div class="app" id="app-container">
         <aside class="sidebar">
-            <h2><i class="fas fa-comments"></i> ChatSpace by Annie🐬</h2>
+            <h2><i class="fas fa-comments"></i> AnnieTextSpace</h2>
             
             <div>
-                <input id="username" placeholder="Enter your name..." autocomplete="off" /><br><br>
+                <input id="username" placeholder="Enter your name..." autocomplete="off" />
                 <input id="room" placeholder="Room Name (e.g. dev)" autocomplete="off" />
                 <button id="join">Join Room <i class="fas fa-arrow-right"></i></button>
             </div>
@@ -27,6 +27,8 @@
 
         <section class="chat-window">
             <header class="chat-header">
+                <button id="back-btn"><i class="fas fa-arrow-left"></i></button>
+                
                 <h3 id="room-name">Room: <span style="opacity:0.6;">(Join a room)</span></h3>
                 <div id="room-tabs" class="room-tabs"></div>
             </header>
@@ -37,31 +39,29 @@
 
             <footer class="chat-footer">
                 <button id="emoji-btn">😊</button>
-                <input id="message" placeholder="Type your message..." autocomplete="off" />
+                <input id="message" placeholder="Type message..." autocomplete="off" />
                 <button id="send"><i class="fas fa-paper-plane"></i></button>
                 
                 <emoji-picker id="emoji-picker" 
-                    style="display:none; position:absolute; bottom:80px; left:20px;">
+                    style="display:none; position:absolute; bottom:70px; left:10px; z-index:100;">
                 </emoji-picker>
             </footer>
         </section>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // --- CONFIGURATION ---
-        // If deploying, replace io() with io("https://your-render-url.com")
         const socket = io("https://chat-application-613y.onrender.com"); 
-        
 
+        const appContainer = document.getElementById('app-container');
         const chat = document.getElementById('chat');
         const messageInput = document.getElementById('message');
         const usernameInput = document.getElementById('username');
         const roomInput = document.getElementById('room');
         const sendBtn = document.getElementById('send');
         const joinBtn = document.getElementById('join');
+        const backBtn = document.getElementById('back-btn'); // New Back Button
         const roomNameDisplay = document.getElementById('room-name');
         const emojiBtn = document.getElementById('emoji-btn');
         const emojiPicker = document.getElementById('emoji-picker');
@@ -70,8 +70,6 @@
 
         let joinedRooms = new Set();
         let activeRoom = null;
-        
-        // NEW: Store all messages for all rooms here
         const messageHistory = {}; 
         const unreadCounts = {};
 
@@ -79,7 +77,6 @@
             return new Date(Number(t)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // JUST RENDER (Doesn't check room, just draws what it's given)
         function renderMessage({ user, msg, time, id }, isSystem = false) {
             const isSelf = user === (usernameInput.value || 'Anonymous').trim();
             const wrapper = document.createElement('div');
@@ -92,7 +89,6 @@
             if (isSystem) {
                 wrapper.innerHTML = `<div class="meta system">${msg}</div>`;
                 wrapper.className = 'message system-wrapper';
-                wrapper.style.justifyContent = 'center';
             } else {
                 bubble.innerHTML = `
                     <div class="text">${msg}</div>
@@ -104,36 +100,29 @@
             }
 
             chat.appendChild(wrapper);
-            chat.scrollTop = chat.scrollHeight; // Auto-scroll to bottom
+            chat.scrollTop = chat.scrollHeight; 
         }
 
         function switchRoom(room) {
             activeRoom = room;
             roomNameDisplay.innerHTML = `Room: <b>${room}</b>`;
             
-            // 1. Clear the screen
+            // 1. Clear & Restore
             chat.innerHTML = '';
-            
-            // 2. Restore history for this room (if any)
             if (messageHistory[room]) {
-                messageHistory[room].forEach(data => {
-                    // Check if it's a system message or user message based on data structure
-                    // For simplicity, we assume user messages here unless marked otherwise
-                    // In this simple app, we can detect system messages if they lack an ID or have specific flag
-                    // But your server sends slightly different payloads.
-                    
-                    // We'll trust the stored data.
-                    renderMessage(data, data.isSystem);
-                });
+                messageHistory[room].forEach(data => renderMessage(data, data.isSystem));
             }
 
-            // 3. Update Tabs UI
+            // 2. UI Updates
             document.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
             const activeTab = document.querySelector(`.room-tab[data-room="${room}"]`);
             if(activeTab) activeTab.classList.add('active');
 
             unreadCounts[room] = 0;
             updateRoomTabBadge(room);
+
+            // 3. MOBILE: Show Chat View
+            appContainer.classList.add('show-chat');
         }
 
         function updateRoomTabBadge(room) {
@@ -155,6 +144,8 @@
             roomTabs.appendChild(tab);
         }
 
+        // --- BUTTON ACTIONS ---
+
         joinBtn.onclick = () => {
             const room = (roomInput.value || 'general').trim();
             const user = (usernameInput.value || 'Anonymous').trim();
@@ -168,17 +159,18 @@
                 socket.emit('join room', { room, user });
                 joinedRooms.add(room);
                 addRoomTab(room);
-                // Initialize history for this room
                 if (!messageHistory[room]) messageHistory[room] = [];
             }
             switchRoom(room);
         };
 
+        // NEW: Back Button Logic for Mobile
+        backBtn.onclick = () => {
+            appContainer.classList.remove('show-chat');
+        };
+
         sendBtn.onclick = () => {
-            if (!activeRoom) {
-                alert("Join a room first!");
-                return;
-            }
+            if (!activeRoom) return;
             const msg = messageInput.value.trim();
             if (!msg) return;
             const user = (usernameInput.value || 'Anonymous').trim();
@@ -190,7 +182,7 @@
             if (e.key === 'Enter') sendBtn.onclick();
         });
 
-        // EMOJI LOGIC
+        // Emoji Logic
         emojiBtn.onclick = (e) => {
             e.stopPropagation();
             const isVisible = emojiPicker.style.display === 'block';
@@ -208,11 +200,9 @@
         // --- SOCKET EVENTS ---
 
         socket.on('chat message', data => {
-            // 1. Save to History
             if (!messageHistory[data.room]) messageHistory[data.room] = [];
             messageHistory[data.room].push(data);
 
-            // 2. Render ONLY if we are looking at that room
             if (data.room === activeRoom) {
                 renderMessage(data);
                 socket.emit('message read', { room: activeRoom, msgId: data.id });
@@ -223,9 +213,7 @@
         });
 
         socket.on('system message', data => {
-            // Mark as system for our renderer
             data.isSystem = true; 
-            
             if (!messageHistory[data.room]) messageHistory[data.room] = [];
             messageHistory[data.room].push(data);
 
@@ -237,9 +225,4 @@
         });
     </script>
 </body>
-
 </html>
-
-
-
-
