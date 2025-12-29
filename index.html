@@ -49,9 +49,11 @@
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Connect to Localhost automatically
-        const socket = io("https://chat-application-613y.onrender.com");
+        // --- CONFIGURATION ---
+        // If deploying, replace io() with io("https://your-render-url.com")
+        const socket = io(); 
 
         const chat = document.getElementById('chat');
         const messageInput = document.getElementById('message');
@@ -67,15 +69,17 @@
 
         let joinedRooms = new Set();
         let activeRoom = null;
+        
+        // NEW: Store all messages for all rooms here
+        const messageHistory = {}; 
         const unreadCounts = {};
 
         function formatTime(t) {
             return new Date(Number(t)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        function createMessage({ user, msg, time, room, id }, isSystem = false) {
-            if (room !== activeRoom) return;
-
+        // JUST RENDER (Doesn't check room, just draws what it's given)
+        function renderMessage({ user, msg, time, id }, isSystem = false) {
             const isSelf = user === (usernameInput.value || 'Anonymous').trim();
             const wrapper = document.createElement('div');
             wrapper.className = `message ${isSelf ? 'sent' : 'received'}`;
@@ -99,18 +103,30 @@
             }
 
             chat.appendChild(wrapper);
-            chat.scrollTop = chat.scrollHeight;
-
-            if (!isSystem && !isSelf) {
-                socket.emit('message read', { room: activeRoom, msgId: id });
-            }
+            chat.scrollTop = chat.scrollHeight; // Auto-scroll to bottom
         }
 
         function switchRoom(room) {
             activeRoom = room;
             roomNameDisplay.innerHTML = `Room: <b>${room}</b>`;
+            
+            // 1. Clear the screen
             chat.innerHTML = '';
             
+            // 2. Restore history for this room (if any)
+            if (messageHistory[room]) {
+                messageHistory[room].forEach(data => {
+                    // Check if it's a system message or user message based on data structure
+                    // For simplicity, we assume user messages here unless marked otherwise
+                    // In this simple app, we can detect system messages if they lack an ID or have specific flag
+                    // But your server sends slightly different payloads.
+                    
+                    // We'll trust the stored data.
+                    renderMessage(data, data.isSystem);
+                });
+            }
+
+            // 3. Update Tabs UI
             document.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
             const activeTab = document.querySelector(`.room-tab[data-room="${room}"]`);
             if(activeTab) activeTab.classList.add('active');
@@ -151,6 +167,8 @@
                 socket.emit('join room', { room, user });
                 joinedRooms.add(room);
                 addRoomTab(room);
+                // Initialize history for this room
+                if (!messageHistory[room]) messageHistory[room] = [];
             }
             switchRoom(room);
         };
@@ -171,32 +189,32 @@
             if (e.key === 'Enter') sendBtn.onclick();
         });
 
-        // --- FIXED EMOJI LOGIC ---
-        
-        // Toggle picker visibility
+        // EMOJI LOGIC
         emojiBtn.onclick = (e) => {
-            e.stopPropagation(); // Prevent this click from triggering the document listener
+            e.stopPropagation();
             const isVisible = emojiPicker.style.display === 'block';
             emojiPicker.style.display = isVisible ? 'none' : 'block';
         };
-
-        // Add emoji WITHOUT closing the picker
         emojiPicker.addEventListener('emoji-click', e => {
             messageInput.value += e.detail.unicode;
-            // Removed the line: emojiPicker.style.display = 'none';
         });
-
-        // Close picker when clicking ANYWHERE else
         document.addEventListener('click', (e) => {
             if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
                 emojiPicker.style.display = 'none';
             }
         });
-        // -------------------------
+
+        // --- SOCKET EVENTS ---
 
         socket.on('chat message', data => {
+            // 1. Save to History
+            if (!messageHistory[data.room]) messageHistory[data.room] = [];
+            messageHistory[data.room].push(data);
+
+            // 2. Render ONLY if we are looking at that room
             if (data.room === activeRoom) {
-                createMessage(data);
+                renderMessage(data);
+                socket.emit('message read', { room: activeRoom, msgId: data.id });
             } else {
                 unreadCounts[data.room] = (unreadCounts[data.room] || 0) + 1;
                 updateRoomTabBadge(data.room);
@@ -204,7 +222,13 @@
         });
 
         socket.on('system message', data => {
-            if (data.room === activeRoom) createMessage(data, true);
+            // Mark as system for our renderer
+            data.isSystem = true; 
+            
+            if (!messageHistory[data.room]) messageHistory[data.room] = [];
+            messageHistory[data.room].push(data);
+
+            if (data.room === activeRoom) renderMessage(data, true);
         });
 
         socket.on('online users', users => {
@@ -214,4 +238,5 @@
 </body>
 
 </html>
+
 
