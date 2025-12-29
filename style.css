@@ -12,8 +12,7 @@
     margin: 0;
     padding: 0;
     font-family: 'Poppins', sans-serif;
-    /* Prevent blue highlight on tap for mobile */
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: transparent; /* Fix mobile tap blue box */
 }
 
 body {
@@ -45,6 +44,12 @@ body {
     border: var(--glass-border);
     overflow: hidden;
     position: relative;
+    animation: zoomIn 0.8s ease-out;
+}
+
+@keyframes zoomIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 /* Sidebar */
@@ -56,8 +61,7 @@ body {
     flex-direction: column;
     gap: 15px;
     border-right: var(--glass-border);
-    transition: transform 0.3s ease-in-out;
-    overflow-y: auto; /* Allows scrolling if list is long */
+    overflow-y: auto; /* Fix: Allow scrolling on mobile */
 }
 
 .sidebar h2 {
@@ -75,7 +79,7 @@ body {
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.6);
     outline: none;
-    font-size: 16px; /* Prevents zoom on iPhone */
+    font-size: 16px; /* Fix: Prevents iPhone zoom */
 }
 
 .sidebar button#join {
@@ -157,7 +161,7 @@ body {
 .room-tabs {
     display: flex;
     gap: 5px;
-    overflow-x: auto; /* Allow scrolling tabs on mobile */
+    overflow-x: auto;
     max-width: 50%;
 }
 
@@ -201,8 +205,13 @@ body {
 
 .message {
     display: flex;
-    max-width: 85%; /* Slightly wider on mobile */
-    animation: fadeIn 0.3s ease;
+    max-width: 85%;
+    animation: messagePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes messagePop {
+    from { opacity: 0; transform: translateY(20px) scale(0.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .message.sent { align-self: flex-end; }
@@ -214,6 +223,7 @@ body {
     font-size: 14px;
     line-height: 1.4;
     word-wrap: break-word;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
 .message.sent .bubble {
@@ -238,6 +248,7 @@ body {
 .system-wrapper {
     justify-content: center;
     width: 100%;
+    display: flex;
 }
 
 .meta.system {
@@ -246,6 +257,8 @@ body {
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 12px;
+    color: #555;
+    font-style: italic;
 }
 
 /* Footer */
@@ -255,6 +268,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    border-top: var(--glass-border);
 }
 
 .chat-footer input {
@@ -286,29 +300,21 @@ body {
     font-size: 1rem;
 }
 
+/* Emoji Picker - Moved from Inline HTML to CSS */
 emoji-picker {
     width: 100%;
     max-width: 350px;
     height: 300px;
-    /* New positioning logic */
     position: absolute;
     bottom: 70px;
     left: 10px;
     z-index: 100;
     display: none; /* Hidden by default */
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    --emoji-picker-border-radius: 20px;
 }
 
-/* Open state class (toggle this in JS instead of style.display) */
-emoji-picker.open {
-    display: block;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- MOBILE RESPONSIVENESS --- */
+/* --- MOBILE RESPONSIVENESS LOGIC --- */
 @media (max-width: 768px) {
     .app {
         width: 100%;
@@ -317,7 +323,7 @@ emoji-picker.open {
         border: none;
     }
 
-    /* By default on mobile: Show Sidebar, Hide Chat */
+    /* 1. Default Mobile State: Show Sidebar, Hide Chat */
     .sidebar {
         width: 100%;
         display: flex;
@@ -328,7 +334,7 @@ emoji-picker.open {
         width: 100%;
     }
 
-    /* When Chat is Active (Class added via JS) */
+    /* 2. Active Chat State: Hide Sidebar, Show Chat */
     .app.show-chat .sidebar {
         display: none;
     }
@@ -337,9 +343,8 @@ emoji-picker.open {
         display: flex;
     }
 
-    /* Show the Back Button on Mobile */
+    /* 3. Show Back Button */
     #back-btn {
         display: block;
     }
 }
-
